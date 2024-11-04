@@ -1,1 +1,2 @@
 guess-it-dockerized/*
+!guess-it-dockerized/student/
