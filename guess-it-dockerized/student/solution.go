@@ -3,81 +3,59 @@ package main
 import (
 	"fmt"
 	"math"
-	"os"
+	"strconv"
 )
 
 func main() {
-	var num float64
-	Y := []float64{}
-	X := []float64{}
-
-	for i := 1; i < 12500; i++ {
-		fmt.Fscan(os.Stdin, &num)
-		if i == 1 {
-			fmt.Println(num, num)
-			Y = append(Y, num)
-			X = append(X, float64(i))
-			continue
+	numbers := []float64{}
+	for {
+		var input string
+		_, err := fmt.Scanln(&input)
+		if err != nil {
+			break
 		}
-		Y = append(Y, num)
+		num, err := strconv.ParseFloat(input, 64)
+		if err != nil {
+			fmt.Println("Invalid input")
+			return
+		}
+		numbers = append(numbers, num)
+		min, max := predictNextRange(numbers)
+		fmt.Printf("%.0f %.0f\n", min, max)
+	}
+}
+
+func predictNextRange(numbers []float64) (float64, float64) {
+	var X []float64
+	var min, max float64
+	if len(numbers) < 2 {
+		return 0, 0
+	}
+	for i := 0; i < len(numbers); i++ {
 		X = append(X, float64(i))
-		avgx := Averge(X)
-		avgy := Averge(Y)
-		Xi := Center(X, avgx)
-		Yi := Center(Y, avgy)
-		a := CalculateSlope(Xi, Yi)
-		b := avgy - a*avgx
-		avgxi := Averge(Xi)
-		avgyi := Averge(Yi)
-		var1 := Vrariance(Xi, avgxi)
-		var2 := Vrariance(Yi, avgyi)
-		cov := Cov(Xi, Yi, avgxi, avgyi) / math.Sqrt(var1*var2)
-		if cov < 0 {
-			cov = -cov
-		}
-		fmt.Println((a*float64(i)+b)-(a*float64(i)+b)*(1-cov)-4.5, (a*float64(i)+b)+(a*float64(i)+b)*(1-cov)+4.5)
 	}
+	m, b, _ := calculateLRLandPCC(numbers)
+	min = m*X[len(X)-1] + b - 20
+	max = m*X[len(X)-1] + b + 20
+	return min, max
 }
 
-func Averge(nums []float64) float64 {
-	sum := 0.0
-	for _, num := range nums {
-		sum += num
+func calculateLRLandPCC(numbers []float64) (float64, float64, float64) {
+	n := float64(len(numbers))
+	sumX, sumY, sumXY, sumX2, sumY2 := 0.0, 0.0, 0.0, 0.0, 0.0
+	for i, v := range numbers {
+		x := float64(i)
+		y := v
+		sumX += x
+		sumY += y
+		sumXY += x * y
+		sumX2 += x * x
+		sumY2 += y * y
 	}
-	return float64(sum) / float64(len(nums))
-}
-
-func Center(Z []float64, avg float64) []float64 {
-	res := []float64{}
-	for _, z := range Z {
-		res = append(res, z-avg)
-	}
-	return res
-}
-
-func CalculateSlope(X []float64, Y []float64) float64 {
-	n := 0.0
-	N := 0.0
-	for i := 0; i < len(X); i = i + 1 {
-		n += X[i] * Y[i]
-		N += X[i] * X[i]
-	}
-	// fmt.Println(n, N)
-	return n / N
-}
-
-func Cov(X, Y []float64, avgx, avgy float64) float64 {
-	res := 0.0
-	for i := 0; i < len(X); i++ {
-		res += (X[i] - avgx) * (Y[i] - avgy)
-	}
-	return res / float64(len(X))
-}
-
-func Vrariance(nums []float64, averg float64) float64 {
-	sum := 0.0
-	for _, num := range nums {
-		sum += math.Pow((num)-(averg), 2)
-	}
-	return sum / float64(len(nums))
+	// Calculate slope (m) and intercept (b)
+	m := ((n * sumXY) - sumX*sumY) / ((n * sumX2) - (sumX * sumX))
+	b := (sumY - (m * sumX)) / n
+	// Calculate Pearson Correlation Coefficient (r)
+	r := (n*sumXY - sumX*sumY) / math.Sqrt((n*sumX2-sumX*sumX)*(n*sumY2-sumY*sumY))
+	return m, b, r
 }
